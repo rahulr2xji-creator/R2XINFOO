@@ -18,48 +18,19 @@ import base64
 
 MAIN_KEY = base64.b64decode('WWcmdGMlREV1aDYlWmNeOA==')
 MAIN_IV = base64.b64decode('Nm95WkRyMjJFM3ljaGpNJQ==')
-RELEASEVERSION = "OB54"
+RELEASEVERSION = "OB54"  # UPDATED to OB54
 USERAGENT = "Dalvik/2.1.0 (Linux; U; Android 13; CPH2095 Build/RKQ1.211119.001)"
 SUPPORTED_REGIONS = {"IND", "BR", "US", "SAC", "NA", "SG", "RU", "ID", "TW", "VN", "TH", "ME", "PK", "CIS", "BD", "EUROPE"}
 
-# Updated account credentials for each region
-REGION_CREDENTIALS = {
+# === JWT API Configuration ===
+JWT_API_URL = "https://papajwt.vercel.app/kirito"
+JWT_ACCOUNTS = {
     "IND": {"uid": "4797885396", "password": "M4X_BY_SEMY_km11H3EV"},
-    "BR": {"uid": "14379387726", "password": "69B3A41D5D68C593161A84CBC8966884AA763144A58CEF9A95D226EB853B53FF"},
-    "US": {"uid": "14379387726", "password": "69B3A41D5D68C593161A84CBC8966884AA763144A58CEF9A95D226EB853B53FF"},
-    "SAC": {"uid": "14379387726", "password": "69B3A41D5D68C593161A84CBC8966884AA763144A58CEF9A95D226EB853B53FF"},
-    "NA": {"uid": "14379387726", "password": "69B3A41D5D68C593161A84CBC8966884AA763144A58CEF9A95D226EB853B53FF"},
-    "SG": {"uid": "14379387726", "password": "69B3A41D5D68C593161A84CBC8966884AA763144A58CEF9A95D226EB853B53FF"},
-    "RU": {"uid": "14379387726", "password": "69B3A41D5D68C593161A84CBC8966884AA763144A58CEF9A95D226EB853B53FF"},
-    "ID": {"uid": "14379387726", "password": "69B3A41D5D68C593161A84CBC8966884AA763144A58CEF9A95D226EB853B53FF"},
-    "TW": {"uid": "14379387726", "password": "69B3A41D5D68C593161A84CBC8966884AA763144A58CEF9A95D226EB853B53FF"},
-    "VN": {"uid": "14379387726", "password": "69B3A41D5D68C593161A84CBC8966884AA763144A58CEF9A95D226EB853B53FF"},
-    "TH": {"uid": "14379387726", "password": "69B3A41D5D68C593161A84CBC8966884AA763144A58CEF9A95D226EB853B53FF"},
-    "ME": {"uid": "14379387726", "password": "69B3A41D5D68C593161A84CBC8966884AA763144A58CEF9A95D226EB853B53FF"},
-    "PK": {"uid": "14379387726", "password": "69B3A41D5D68C593161A84CBC8966884AA763144A58CEF9A95D226EB853B53FF"},
-    "CIS": {"uid": "14379387726", "password": "69B3A41D5D68C593161A84CBC8966884AA763144A58CEF9A95D226EB853B53FF"},
-    "BD": {"uid": "14379387726", "password": "69B3A41D5D68C593161A84CBC8966884AA763144A58CEF9A95D226EB853B53FF"},
-    "EUROPE": {"uid": "14379387726", "password": "69B3A41D5D68C593161A84CBC8966884AA763144A58CEF9A95D226EB853B53FF"}
-}
-
-# Server URLs for each region
-REGION_SERVERS = {
-    "IND": "https://client.ind.freefiremobile.com",
-    "BR": "https://client.br.freefiremobile.com",
-    "US": "https://client.us.freefiremobile.com",
-    "SAC": "https://client.sac.freefiremobile.com",
-    "NA": "https://client.na.freefiremobile.com",
-    "SG": "https://client.sg.freefiremobile.com",
-    "RU": "https://client.ru.freefiremobile.com",
-    "ID": "https://client.id.freefiremobile.com",
-    "TW": "https://client.tw.freefiremobile.com",
-    "VN": "https://client.vn.freefiremobile.com",
-    "TH": "https://client.th.freefiremobile.com",
-    "ME": "https://client.me.freefiremobile.com",
-    "PK": "https://client.pk.freefiremobile.com",
-    "CIS": "https://client.cis.freefiremobile.com",
-    "BD": "https://client.bd.freefiremobile.com",
-    "EUROPE": "https://client.europe.freefiremobile.com"
+    "BR": {"uid": "4044223479", "password": "EB067625F1E2CB705C7561747A46D502480DC5D41497F4C90F3FDBC73B8082ED"},
+    "US": {"uid": "4044223479", "password": "EB067625F1E2CB705C7561747A46D502480DC5D41497F4C90F3FDBC73B8082ED"},
+    "SAC": {"uid": "4044223479", "password": "EB067625F1E2CB705C7561747A46D502480DC5D41497F4C90F3FDBC73B8082ED"},
+    "NA": {"uid": "4044223479", "password": "EB067625F1E2CB705C7561747A46D502480DC5D41497F4C90F3FDBC73B8082ED"},
+    "default": {"uid": "4108414251", "password": "E4F9C33BBEB23C0DA0AD7E60F63C8A05D6A878798E3CD32C4E2314C1EEFD4F72"}
 }
 
 # === Flask App Setup ===
@@ -89,66 +60,113 @@ async def json_to_proto(json_data: str, proto_message: Message) -> bytes:
     json_format.ParseDict(json.loads(json_data), proto_message)
     return proto_message.SerializeToString()
 
-# === JWT Token Generation ===
+# === NEW: Get JWT from papajwt API ===
 
-async def get_jwt_token(region: str) -> dict:
-    """Get JWT token using the new endpoint"""
-    creds = REGION_CREDENTIALS.get(region.upper(), REGION_CREDENTIALS["IND"])
-    url = f"https://papajwt.vercel.app/kirito?uid={creds['uid']}&password={creds['password']}"
-    
-    async with httpx.AsyncClient() as client:
+async def get_jwt_from_api(uid: str, password: str) -> dict:
+    """Fetch JWT from papajwt API"""
+    url = f"{JWT_API_URL}?uid={uid}&password={password}"
+    async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.get(url)
         data = resp.json()
-        
         if data.get("success"):
             return {
-                'jwt': data['jwt'],
-                'lock_region': data['region'],
-                'url': data['url'],
-                'expires_at': data['timestamp'] + 25200  # 7 hours expiry
+                "jwt": data.get("jwt"),
+                "account_uid": data.get("account_uid"),
+                "region": data.get("region"),
+                "url": data.get("url"),
+                "timestamp": data.get("timestamp")
             }
         else:
-            raise Exception(f"Failed to get JWT: {data}")
+            raise Exception("JWT API returned error")
 
-async def create_jwt(region: str):
-    """Create and cache JWT for a region"""
-    try:
-        token_data = await get_jwt_token(region)
+# === NEW: Login using JWT (instead of old method) ===
+
+async def login_with_jwt(jwt: str, region: str):
+    """Login using JWT token"""
+    # JWT ko Base64 decode karke payload nikalte hain
+    import jwt as pyjwt
+    decoded = pyjwt.decode(jwt, options={"verify_signature": False})
+    
+    # Login request body prepare karo
+    body = json.dumps({
+        "open_id": decoded.get("external_id"),
+        "open_id_type": "4",
+        "login_token": jwt,  # JWT as login token
+        "orign_platform_type": "4"
+    })
+    
+    proto_bytes = await json_to_proto(body, FreeFire_pb2.LoginReq())
+    payload = aes_cbc_encrypt(MAIN_KEY, MAIN_IV, proto_bytes)
+    
+    url = "https://loginbp.ggpolarbear.com/MajorLogin"
+    headers = {
+        'User-Agent': USERAGENT,
+        'Connection': "Keep-Alive",
+        'Accept-Encoding': "gzip",
+        'Content-Type': "application/octet-stream",
+        'Expect': "100-continue",
+        'X-Unity-Version': "2018.4.11f1",
+        'X-GA': "v1 1",
+        'ReleaseVersion': RELEASEVERSION
+    }
+    
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(url, data=payload, headers=headers)
+        msg = json.loads(json_format.MessageToJson(decode_protobuf(resp.content, FreeFire_pb2.LoginRes)))
+        
         cached_tokens[region] = {
-            'token': token_data['jwt'],
-            'region': token_data['lock_region'],
-            'server_url': token_data['url'],
-            'expires_at': token_data['expires_at']
+            'token': f"Bearer {msg.get('token','0')}",
+            'region': msg.get('lockRegion','0'),
+            'server_url': msg.get('serverUrl','0'),
+            'expires_at': time.time() + 25200,
+            'jwt': jwt,
+            'account_uid': decoded.get("account_id")
         }
-    except Exception as e:
-        print(f"Error creating JWT for {region}: {e}")
-        # Fallback to previous token if available
-        if region not in cached_tokens:
-            raise
+        return cached_tokens[region]
+
+# === Updated Token Generation using JWT ===
+
+async def create_jwt_token(region: str):
+    """Create token using JWT API"""
+    r = region.upper()
+    
+    # Get credentials for region
+    if r in JWT_ACCOUNTS:
+        creds = JWT_ACCOUNTS[r]
+    else:
+        creds = JWT_ACCOUNTS["default"]
+    
+    # Get JWT from API
+    jwt_data = await get_jwt_from_api(creds["uid"], creds["password"])
+    
+    # Login using JWT
+    await login_with_jwt(jwt_data["jwt"], region)
+    
+    return jwt_data
 
 async def initialize_tokens():
-    """Initialize tokens for all regions"""
-    tasks = [create_jwt(r) for r in SUPPORTED_REGIONS]
+    """Initialize tokens for all regions using JWT"""
+    tasks = [create_jwt_token(r) for r in SUPPORTED_REGIONS]
     await asyncio.gather(*tasks)
 
 async def refresh_tokens_periodically():
-    """Refresh tokens periodically"""
     while True:
         await asyncio.sleep(25200)  # 7 hours
         await initialize_tokens()
 
-async def get_token_info(region: str) -> Tuple[str, str, str]:
-    """Get token info for a region"""
+async def get_token_info(region: str) -> Tuple[str,str,str]:
     info = cached_tokens.get(region)
     if info and time.time() < info['expires_at']:
         return info['token'], info['region'], info['server_url']
     
-    await create_jwt(region)
+    # Token expired, refresh using JWT
+    await create_jwt_token(region)
     info = cached_tokens[region]
     return info['token'], info['region'], info['server_url']
 
+# === Updated GetAccountInformation ===
+
 async def GetAccountInformation(uid, unk, region, endpoint):
-    """Get account information using JWT"""
     payload = await json_to_proto(json.dumps({'a': uid, 'b': unk}), main_pb2.GetPlayerPersonalShow())
     data_enc = aes_cbc_encrypt(MAIN_KEY, MAIN_IV, payload)
     token, lock, server = await get_token_info(region)
@@ -200,8 +218,9 @@ def get_account_info():
             formatted_json = json.dumps(return_data, indent=2, ensure_ascii=False)
             return formatted_json, 200, {'Content-Type': 'application/json; charset=utf-8'}
         except:
-            pass  # fallback to testing all regions
+            pass
 
+    # Try all regions
     for region in SUPPORTED_REGIONS:
         try:
             return_data = asyncio.run(GetAccountInformation(uid, "7", region, "/GetPlayerPersonalShow"))
@@ -209,53 +228,43 @@ def get_account_info():
             formatted_json = json.dumps(return_data, indent=2, ensure_ascii=False)
             return formatted_json, 200, {'Content-Type': 'application/json; charset=utf-8'}
         except Exception as e:
-            print(f"Error with region {region}: {e}")
+            print(f"Error in region {region}: {e}")
             continue
 
     return jsonify({"error": "UID not found in any region."}), 404
 
-@app.route('/refresh', methods=['GET', 'POST'])
+@app.route('/refresh', methods=['GET','POST'])
 def refresh_tokens_endpoint():
     try:
         asyncio.run(initialize_tokens())
-        return jsonify({'message': 'Tokens refreshed for all regions.', 'regions': list(cached_tokens.keys())}), 200
+        return jsonify({
+            'message': 'Tokens refreshed for all regions using JWT API.',
+            'regions': list(cached_tokens.keys())
+        }), 200
     except Exception as e:
         return jsonify({'error': f'Refresh failed: {e}'}), 500
 
-@app.route('/token-status')
-def token_status():
-    """Check token status for all regions"""
-    status = {}
-    for region in SUPPORTED_REGIONS:
-        info = cached_tokens.get(region)
-        if info:
-            status[region] = {
-                'has_token': bool(info.get('token')),
-                'expires_at': info.get('expires_at'),
-                'server_url': info.get('server_url'),
-                'is_valid': time.time() < info.get('expires_at', 0)
-            }
-        else:
-            status[region] = {'has_token': False}
-    return jsonify(status)
-
-@app.route('/health')
-def health_check():
-    """Health check endpoint"""
-    return jsonify({
-        'status': 'running',
-        'release_version': RELEASEVERSION,
-        'supported_regions': list(SUPPORTED_REGIONS),
-        'cached_regions': list(cached_tokens.keys())
-    })
+@app.route('/jwt-info', methods=['GET'])
+def get_jwt_info():
+    """Get current JWT info for a region"""
+    region = request.args.get('region', 'IND').upper()
+    if region in cached_tokens:
+        info = cached_tokens[region]
+        return jsonify({
+            'region': region,
+            'has_jwt': 'jwt' in info,
+            'account_uid': info.get('account_uid'),
+            'expires_at': info.get('expires_at'),
+            'token_preview': info.get('token', '')[:50] + '...'
+        })
+    return jsonify({'error': 'Region not found'}), 404
 
 # === Startup ===
 
 async def startup():
-    print(f"Starting with Release Version: {RELEASEVERSION}")
-    print(f"Supported Regions: {SUPPORTED_REGIONS}")
+    print("🚀 Initializing tokens using JWT API...")
     await initialize_tokens()
-    print("Tokens initialized successfully!")
+    print("✅ Tokens initialized!")
     asyncio.create_task(refresh_tokens_periodically())
 
 if __name__ == '__main__':
