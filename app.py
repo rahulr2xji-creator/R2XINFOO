@@ -28,7 +28,7 @@ GAME_VERSION = "1.126.1"  # New version constant
 USERAGENT = "Dalvik/2.1.0 (Linux; U; Android 13; CPH2095 Build/RKQ1.211119.001)"
 SUPPORTED_REGIONS = {"IND", "BR", "US", "SAC", "NA", "SG", "RU", "ID", "TW", "VN", "TH", "ME", "PK", "CIS", "BD", "EUROPE"}
 
-# === Device Information for OB54 ===
+# === Device Information for OB54 (for headers and other requests) ===
 DEVICE_INFO = {
     "brand": "Handheld",
     "model": "OnePlus A5010",
@@ -70,21 +70,10 @@ async def json_to_proto(json_data: str, proto_message: Message) -> bytes:
     json_format.ParseDict(json.loads(json_data), proto_message)
     return proto_message.SerializeToString()
 
-async def json_to_proto_with_device(json_data: str, proto_message: Message, include_device: bool = False) -> bytes:
-    """Enhanced JSON to proto conversion with optional device info for OB54"""
-    data = json.loads(json_data)
-    
-    # Add device information if requested (for OB54 compatibility)
-    if include_device:
-        data['device_info'] = DEVICE_INFO
-        
-    json_format.ParseDict(data, proto_message)
-    return proto_message.SerializeToString()
-
 def get_account_credentials(region: str) -> str:
     r = region.upper()
     if r == "IND":
-        return "uid=4797885396&password=M4X_BY_SEMY_km11H3EV"
+        return "uid=5163888594&password=E0C602A732D4DD8A81F6C03D800ACA8FC5926E94F5FB0107E5608F5F5DDE259C"
     elif r in {"BR", "US", "SAC", "NA"}:
         return "uid=4044223479&password=EB067625F1E2CB705C7561747A46D502480DC5D41497F4C90F3FDBC73B8082ED"
     else:
@@ -115,17 +104,12 @@ async def create_jwt(region: str):
         account = get_account_credentials(region)
         token_val, open_id = await get_access_token(account)
         
-        # Updated login request with more fields for OB54
+        # Only include fields that exist in LoginReq protobuf
         login_data = {
-            "open_id": open_id,
-            "open_id_type": "4",
-            "login_token": token_val,
-            "orign_platform_type": "4",
-            "device_id": DEVICE_INFO["device_id"],
-            "device_type": "Android",
-            "game_version": GAME_VERSION,
-            "release_version": RELEASEVERSION,
-            "device_info": DEVICE_INFO
+            "openId": open_id,  # Note: field name is openId not open_id
+            "openIdType": "4",  # Note: field name is openIdType
+            "loginToken": token_val,  # Note: field name is loginToken
+            "orignPlatformType": "4"  # Note: field name is orignPlatformType
         }
         
         body = json.dumps(login_data)
@@ -141,7 +125,11 @@ async def create_jwt(region: str):
             'Expect': "100-continue",
             'X-Unity-Version': "2018.4.11f1",
             'X-GA': "v1 1",
-            'ReleaseVersion': RELEASEVERSION
+            'ReleaseVersion': RELEASEVERSION,
+            # Additional device info can be sent in headers if needed
+            'X-Device-ID': DEVICE_INFO["device_id"],
+            'X-Device-Model': DEVICE_INFO["model"],
+            'X-Android-Version': DEVICE_INFO["android_version"]
         }
         
         async with httpx.AsyncClient() as client:
@@ -192,12 +180,9 @@ async def get_token_info(region: str) -> Tuple[str, str, str]:
 async def GetAccountInformation(uid, unk, region, endpoint):
     """Fetch account information from Free Fire API"""
     try:
-        # Use enhanced JSON to proto with device info for OB54
-        payload = await json_to_proto_with_device(
-            json.dumps({'a': uid, 'b': unk}), 
-            main_pb2.GetPlayerPersonalShow(),
-            include_device=False  # Set to True if device info is needed in the request
-        )
+        # Only include fields that exist in GetPlayerPersonalShow protobuf
+        payload_data = {'a': uid, 'b': unk}
+        payload = await json_to_proto(json.dumps(payload_data), main_pb2.GetPlayerPersonalShow())
         data_enc = aes_cbc_encrypt(MAIN_KEY, MAIN_IV, payload)
         token, lock, server = await get_token_info(region)
         
@@ -210,7 +195,10 @@ async def GetAccountInformation(uid, unk, region, endpoint):
             'Authorization': token,
             'X-Unity-Version': "2018.4.11f1",
             'X-GA': "v1 1",
-            'ReleaseVersion': RELEASEVERSION
+            'ReleaseVersion': RELEASEVERSION,
+            # Add device info in headers
+            'X-Device-ID': DEVICE_INFO["device_id"],
+            'X-Device-Model': DEVICE_INFO["model"]
         }
         
         async with httpx.AsyncClient() as client:
@@ -258,7 +246,8 @@ def index():
             "/refresh": "Refresh tokens for all regions",
             "/test-ob54": "Test OB54 compatibility",
             "/regions": "List all supported regions",
-            "/stats": "Get API statistics"
+            "/stats": "Get API statistics",
+            "/device-info": "Get device information"
         }
     })
 
@@ -315,22 +304,18 @@ def refresh_tokens_endpoint():
 def test_ob54_compatibility():
     """Test endpoint with OB54 payload structure"""
     try:
-        # Test with the sample payload structure from OB54
+        # Test with the correct field names for LoginReq
         test_payload = {
-            "open_id": DEVICE_INFO["device_id"],
-            "open_id_type": "4",
-            "login_token": "c69ae208fad72738b674b2847b50a3a1dfa25d1a19fae745fc76ac4a0e414c94",
-            "orign_platform_type": "4",
-            "device_info": DEVICE_INFO,
-            "game_version": GAME_VERSION,
-            "release_version": RELEASEVERSION
+            "openId": DEVICE_INFO["device_id"],
+            "openIdType": "4",
+            "loginToken": "c69ae208fad72738b674b2847b50a3a1dfa25d1a19fae745fc76ac4a0e414c94",
+            "orignPlatformType": "4"
         }
         
         # Test proto conversion
-        proto_bytes = asyncio.run(json_to_proto_with_device(
+        proto_bytes = asyncio.run(json_to_proto(
             json.dumps(test_payload),
-            FreeFire_pb2.LoginReq(),
-            include_device=True
+            FreeFire_pb2.LoginReq()
         ))
         
         return jsonify({
@@ -339,11 +324,21 @@ def test_ob54_compatibility():
             "game_version": GAME_VERSION,
             "test_payload": test_payload,
             "proto_size": len(proto_bytes),
+            "device_info": DEVICE_INFO,
             "message": "Successfully tested OB54 payload structure"
         }), 200
     except Exception as e:
         logger.error(f"OB54 test failed: {e}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/device-info', methods=['GET'])
+def get_device_info():
+    """Get current device information used for requests"""
+    return jsonify({
+        "device_info": DEVICE_INFO,
+        "version": RELEASEVERSION,
+        "game_version": GAME_VERSION
+    })
 
 @app.route('/regions', methods=['GET'])
 def get_regions():
@@ -355,7 +350,9 @@ def get_regions():
             region_status[region] = {
                 "has_token": True,
                 "expires_at": info.get('expires_at'),
-                "is_valid": time.time() < info.get('expires_at', 0)
+                "is_valid": time.time() < info.get('expires_at', 0),
+                "region": info.get('region'),
+                "server_url": info.get('server_url')
             }
         else:
             region_status[region] = {
@@ -381,8 +378,15 @@ def get_stats():
         "uid_region_cache_size": len(uid_region_cache),
         "version": RELEASEVERSION,
         "game_version": GAME_VERSION,
-        "supported_regions": len(SUPPORTED_REGIONS)
+        "supported_regions": len(SUPPORTED_REGIONS),
+        "device_id": DEVICE_INFO["device_id"]
     })
+
+@app.route('/clear-cache', methods=['POST'])
+def clear_cache():
+    """Clear the cache"""
+    cache.clear()
+    return jsonify({"message": "Cache cleared successfully"}), 200
 
 @app.errorhandler(404)
 def not_found(error):
@@ -397,6 +401,7 @@ def internal_error(error):
 async def startup():
     """Initialize the application"""
     logger.info(f"Starting Free Fire API with {RELEASEVERSION} ({GAME_VERSION})")
+    logger.info(f"Device ID: {DEVICE_INFO['device_id']}")
     await initialize_tokens()
     asyncio.create_task(refresh_tokens_periodically())
     logger.info("API ready to accept requests")
